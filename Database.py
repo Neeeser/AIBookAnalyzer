@@ -1,7 +1,13 @@
 import os
 from dotenv import load_dotenv
+from langchain import FAISS
+from langchain.callbacks import StreamingStdOutCallbackHandler
+from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
-from langchain.embeddings import OpenAIEmbeddings
+from langchain.document_loaders import TextLoader, PyPDFLoader
+from langchain.embeddings import OpenAIEmbeddings, GPT4AllEmbeddings
+from langchain.llms import GPT4All
+from langchain.text_splitter import CharacterTextSplitter
 
 from langchain.vectorstores import (
     Pinecone,
@@ -10,24 +16,33 @@ import sqlite3
 
 
 class VectorDatabase:
-    def __init__(self):
-        load_dotenv()  # loads env variables
-        pinecone.init(
-            api_key=os.getenv("PINECONE_API_KEY"), environment="us-west1-gcp-free"
-        )
-        self.index_name = "bookindex"
-        self.embeddings = OpenAIEmbeddings(
-            openai_api_key=os.getenv("OPENAI_API_KEY"),
-            disallowed_special=(),
-        )
-        self.model = ChatOpenAI(model_name="gpt-3.5-turbo")
+    def __init__(self, embeddings=GPT4AllEmbeddings()):
+        self.embeddings = embeddings
 
-    def add_to_index(self, documents):
-        self.db = Pinecone.from_documents(
-            documents,
-            self.embeddings,
-            index_name=self.index_name,
+    def create_index(self, index_name, split_text):
+        db = FAISS.from_documents(split_text, self.embeddings)
+        db.save_local("faiss_db", index_name=index_name)
+
+    def load_index(self, index_name):
+        db = FAISS.load_local(
+            "faiss_db", index_name=index_name, embeddings=self.embeddings
         )
+        return db
+
+    def split_text(self, loader, chunk_size=1000, chunk_overlap=0):
+        text_splitter = CharacterTextSplitter(
+            chunk_size=chunk_size, chunk_overlap=chunk_overlap
+        )
+        documents = text_splitter.split_documents(loader.load())
+        return documents
+
+    def add_txt(self, document_path):
+        raw_documents = TextLoader(document_path)
+        return self.split_text(raw_documents)
+
+    def add_pdf(self, pdf_path):
+        loader = PyPDFLoader(pdf_path)
+        return self.split_text(loader)
 
 
 class BookDatabase:
@@ -93,16 +108,35 @@ class BookDatabase:
 
 # Create an instance of the BookDatabase class
 db = BookDatabase("books.db")
-
+vdb = VectorDatabase()
 # Add a new book entry
-book_id = db.add_book("The Great Gatsby", "F. Scott Fitzgerald", "index1")
-# db.delete_all_books()
+db.delete_all_books()
+
+book_id = db.add_book("The Lightning Thief", "Rick Riordan", "thelightningthief")
+vdb.create_index("thelightningthief", vdb.add_pdf("bookdata/The Lightning Thief.pdf"))
 # Search for books
-results = db.search_books("Gatsby")
+results = db.search_books("lightning")
 
 # Print the search results
 for book in results:
     print(book)
+
+index = vdb.load_index(results[0]["index_name"])
+
+local_path = "models/GPT4All-13B-snoozy.ggmlv3.q4_0.bin"  # replace with your desired local file path
+callbacks = [StreamingStdOutCallbackHandler()]
+
+llm = GPT4All(model=local_path, callbacks=callbacks, verbose=True)
+qa = ConversationalRetrievalChain.from_llm(llm, retriever=index.as_retriever())
+# question = "Write me a detailed summary of chapter 1. Include important characters mentioned and important events. Talk about themes introcuded in the chapter."
+question = "Writ me a detailed summary of chapter 2"
+chat_history = []
+
+result = qa({"question": question, "chat_history": chat_history})
+chat_history.append((question, result["answer"]))
+print(f"Question: \n {question} \n")
+print(f"Answer: \n {result['answer']} \n")
+print("------------------------------------------------------- \n")
 
 # Close the database connection
 db.close_connection()

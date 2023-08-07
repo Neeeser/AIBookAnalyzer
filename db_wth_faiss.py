@@ -3,6 +3,7 @@ import getpass
 
 import faiss
 from dotenv import load_dotenv
+from langchain.callbacks import get_openai_callback
 from langchain.chains import ConversationalRetrievalChain
 from langchain.chat_models import ChatOpenAI
 from langchain import PromptTemplate, LLMChain
@@ -16,17 +17,17 @@ from langchain.embeddings.gpt4all import GPT4AllEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 from langchain.vectorstores import FAISS
 
-load_dotenv()  # loads env variables
+# load_dotenv()  # loads env variables
 # # Load the document, split it into chunks, embed each chunk and load it into the vector store.
-raw_documents = TextLoader("bookdata/greatgatsby.txt").load()
-text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
-documents = text_splitter.split_documents(raw_documents)
-db = FAISS.from_documents(documents, GPT4AllEmbeddings())
-db.save_local("faiss_db", index_name="bookindex")
+# raw_documents = TextLoader("bookdata/greatgatsby.txt").load()
+# text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)
+# documents = text_splitter.split_documents(raw_documents)
+# db = FAISS.from_documents(documents, GPT4AllEmbeddings())
+# db.save_local("faiss_db", index_name="bookindex")
 # Query the vector store with a question.
-# db = FAISS.load_local(
-#     "faiss_db", index_name="bookindex", embeddings=GPT4AllEmbeddings()
-# )
+db = FAISS.load_local(
+    "faiss_db", index_name="bookindex", embeddings=GPT4AllEmbeddings()
+)
 
 # model = ChatOpenAI(model_name="gpt-3.5-turbo")
 # qa = ConversationalRetrievalChain.from_llm(model, retriever=db.as_retriever())
@@ -42,7 +43,9 @@ Answer: Let's think step by step."""
 
 prompt = PromptTemplate(template=template, input_variables=["question"])
 
-local_path = "models/llama-2-7b-chat.ggmlv3.q4_0.bin"  # replace with your desired local file path
+local_path = (
+    "models/ggml-gpt4all-j-v1.3-groovy.bin"  # replace with your desired local file path
+)
 
 chat_history = []
 
@@ -61,13 +64,14 @@ llm = GPT4All(model=local_path, callbacks=callbacks, verbose=True)
 qa = ConversationalRetrievalChain.from_llm(llm, retriever=db.as_retriever())
 
 # llm_chain = LLMChain(prompt=prompt, llm=llm)
-question = "Summarize chapter 1"
+question = "Write me a detailed summary of chapter 1. Include important characters mentioned and important events. Talk about themes introcuded in the chapter."
 
 result = qa({"question": question, "chat_history": chat_history})
 chat_history.append((question, result["answer"]))
 print(f"Question: \n {question} \n")
 print(f"Answer: \n {result['answer']} \n")
 print("------------------------------------------------------- \n")
-
+cb = get_openai_callback()
+print(cb)
 
 # llm_chain.run(question)
