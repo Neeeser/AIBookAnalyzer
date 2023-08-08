@@ -1,18 +1,9 @@
-import os
-from dotenv import load_dotenv
-from langchain import FAISS
-from langchain.callbacks import StreamingStdOutCallbackHandler
-from langchain.chains import ConversationalRetrievalChain
-from langchain.chat_models import ChatOpenAI
-from langchain.document_loaders import TextLoader, PyPDFLoader
-from langchain.embeddings import OpenAIEmbeddings, GPT4AllEmbeddings
-from langchain.llms import GPT4All
-from langchain.text_splitter import CharacterTextSplitter
-
-from langchain.vectorstores import (
-    Pinecone,
-)
 import sqlite3
+
+from langchain import FAISS
+from langchain.document_loaders import TextLoader, PyPDFLoader
+from langchain.embeddings import GPT4AllEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
 
 
 class VectorDatabase:
