@@ -10,8 +10,8 @@ vdb = VectorDatabase()
 # Add a new book entry
 db.delete_all_books()
 
-book_id = db.add_book("Dune", "Frank Herbert", "dune", "Dune-Frank-Herbert.epub")
-vdb.create_index("dune", vdb.add_pdf("bookdata/Dune-Frank-Herbert.epub"))
+book_id = db.add_book("greatgatsby", "F scott", "greatgatsby", "greatgatsby.txt")
+vdb.create_index("greatgatsby", vdb.add_txt("bookdata/greatgatsby.txt"))
 # Search for books
 results = db.search_books("dune")
 

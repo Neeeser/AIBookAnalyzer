@@ -5,6 +5,9 @@ from langchain.document_loaders import TextLoader, PyPDFLoader, UnstructuredEPub
 from langchain.embeddings import GPT4AllEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 import hashlib
+import ebooklib
+from ebooklib import epub
+from bs4 import BeautifulSoup
 
 
 class VectorDatabase:
@@ -25,20 +28,25 @@ class VectorDatabase:
         text_splitter = CharacterTextSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap
         )
-        documents = text_splitter.split_documents(loader.load())
+        documents = text_splitter.split_documents(loader)
         return documents
 
     def add_txt(self, document_path):
         raw_documents = TextLoader(document_path)
-        return self.split_text(raw_documents)
+        return self.split_text(raw_documents.load())
 
     def add_pdf(self, pdf_path):
         loader = PyPDFLoader(pdf_path)
-        return self.split_text(loader)
+        return self.split_text(loader.load())
 
     def add_epub(self, epub_path):
-        loader = UnstructuredEPubLoader(epub_path)
-        return self.split_text(loader)
+        book = epub.read_epub(epub_path)
+        text = ""
+        for item in book.get_items():
+            if item.get_type() == ebooklib.ITEM_DOCUMENT:
+                soup = BeautifulSoup(item.get_content(), 'html.parser')
+                text += soup.get_text()
+        return self.split_text(TextLoader(text).load())
 
 
 class BookDatabase:
@@ -142,12 +150,28 @@ class Database():
                     documents = self.vdb.add_pdf(filepath)
                 elif extension == ".epub":
                     documents = self.vdb.add_epub(filepath)
+                else:
+                    print(f"{filename} is not a supported file type.")
+                    continue
                 
                 # Create the index
-
+                index_hash = self.create_index_hash(filename)
+                self.vdb.create_index(index_hash, documents)
                 
+                # Extract author from inside {} in filename
+                author = filename.split("{")[1].split("}")[0]
+                # Extract title from filename
+                title = filename.split("{")[0].strip()
+                # Add the book to the BookDatabase
+                self.bdb.add_book(title, author, index_hash, filename)
+
+            
     def create_index_hash(self, book_file_name):
         # Hash the file name to create a unique index name
         index_name = hashlib.sha256(book_file_name.encode()).hexdigest()
         return index_name
 
+
+
+
+Database().load_all_bookdata()
