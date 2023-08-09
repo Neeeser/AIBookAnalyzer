@@ -68,10 +68,10 @@ class BookDatabase:
         books = [dict(row) for row in rows]
         return books
 
-    def add_book(self, title, author, index_name):
+    def add_book(self, title, author, index_name, filename):
         # Check if the book already exists in the database
         self.cursor.execute(
-            "SELECT * FROM books WHERE title = ? AND author = ?", (title, author)
+            "SELECT * FROM books WHERE title = ? AND author = ? AND filename = ?", (title, author, filename)
         )
         existing_book = self.cursor.fetchone()
         if existing_book:
@@ -80,8 +80,8 @@ class BookDatabase:
 
         # Insert the new book entry if it doesn't exist
         self.cursor.execute(
-            "INSERT INTO books (title, author, index_name) VALUES (?, ?, ?)",
-            (title, author, index_name),
+            "INSERT INTO books (title, author, index_name, filename) VALUES (?, ?, ?, ?)",
+            (title, author, index_name, filename),
         )
         self.conn.commit()
         return self.cursor.lastrowid
@@ -100,3 +100,12 @@ class BookDatabase:
         self.cursor.close()
         self.conn.close()
 
+
+class Database():
+    def __init__(self):
+        self.db_file = "books.db"
+        self.vdb = VectorDatabase()
+        self.bdb = BookDatabase(self.db_file)
+
+    def load_all_bookdata(self):
+# For all books located in bookdata/
