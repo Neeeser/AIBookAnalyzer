@@ -1,7 +1,7 @@
 import sqlite3
 
 from langchain import FAISS
-from langchain.document_loaders import TextLoader, PyPDFLoader
+from langchain.document_loaders import TextLoader, PyPDFLoader, UnstructuredEPubLoader
 from langchain.embeddings import GPT4AllEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
 
@@ -33,6 +33,10 @@ class VectorDatabase:
 
     def add_pdf(self, pdf_path):
         loader = PyPDFLoader(pdf_path)
+        return self.split_text(loader)
+
+    def add_epub(self, epub_path):
+        loader = UnstructuredEPubLoader(epub_path)
         return self.split_text(loader)
 
 
