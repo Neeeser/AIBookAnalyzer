@@ -10,10 +10,10 @@ vdb = VectorDatabase()
 # Add a new book entry
 db.delete_all_books()
 
-book_id = db.add_book("The Lightning Thief", "Rick Riordan", "thelightningthief")
-vdb.create_index("thelightningthief", vdb.add_pdf("bookdata/The Lightning Thief.pdf"))
+book_id = db.add_book("Dune", "Frank Herbert", "dune", "Dune-Frank-Herbert.epub")
+vdb.create_index("dune", vdb.add_pdf("bookdata/Dune-Frank-Herbert.epub"))
 # Search for books
-results = db.search_books("lightning")
+results = db.search_books("dune")
 
 # Print the search results
 for book in results:

@@ -1,9 +1,10 @@
 import sqlite3
-
+import os
 from langchain import FAISS
 from langchain.document_loaders import TextLoader, PyPDFLoader, UnstructuredEPubLoader
 from langchain.embeddings import GPT4AllEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
+import hashlib
 
 
 class VectorDatabase:
@@ -53,7 +54,8 @@ class BookDatabase:
                                (id INTEGER PRIMARY KEY AUTOINCREMENT,
                                 title TEXT,
                                 author TEXT,
-                                index_name TEXT)"""
+                                index_name TEXT,
+                                filename TEXT)"""
         )
         self.conn.commit()
 
@@ -86,6 +88,17 @@ class BookDatabase:
         self.conn.commit()
         return self.cursor.lastrowid
 
+    # Checks if book exists in database by filename
+    def check_book(self, filename):
+        self.cursor.execute(
+            "SELECT * FROM books WHERE filename = ?", (filename,)
+        )
+        existing_book = self.cursor.fetchone()
+        if existing_book:
+            return True
+        else:
+            return False
+
     def delete_all_books(self):
         self.cursor.execute("DELETE FROM books")
         self.conn.commit()
@@ -106,6 +119,35 @@ class Database():
         self.db_file = "books.db"
         self.vdb = VectorDatabase()
         self.bdb = BookDatabase(self.db_file)
+        self.supported_extensions = [".txt", ".pdf", ".epub"]
 
     def load_all_bookdata(self):
-# For all books located in bookdata/
+    # For all books located in bookdata/
+        for filename in os.listdir("bookdata"):
+            # Get the file extension
+            extension = os.path.splitext(filename)[1]
+            # Check if the file extension is supported
+            if extension in self.supported_extensions:
+                # Get the file path
+                filepath = os.path.join("bookdata", filename)
+                # Check if the book is already in the BookDatabase
+                if self.bdb.check_book(filename):
+                    print(f"{filename} already exists in the database.")
+                    continue
+                document = None
+                # Vectorize the book
+                if extension == ".txt":
+                    documents = self.vdb.add_txt(filepath)
+                elif extension == ".pdf":
+                    documents = self.vdb.add_pdf(filepath)
+                elif extension == ".epub":
+                    documents = self.vdb.add_epub(filepath)
+                
+                # Create the index
+
+                
+    def create_index_hash(self, book_file_name):
+        # Hash the file name to create a unique index name
+        index_name = hashlib.sha256(book_file_name.encode()).hexdigest()
+        return index_name
+
