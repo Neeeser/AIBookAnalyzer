@@ -15,7 +15,11 @@ class VectorDatabase:
         self.embeddings = embeddings
 
     def create_index(self, index_name, split_text):
-        db = FAISS.from_documents(split_text, self.embeddings)
+        db = None
+        if isinstance(split_text[0], str):
+            db = FAISS.from_texts(split_text, self.embeddings)
+        else:
+            db = FAISS.from_documents(split_text, self.embeddings)
         db.save_local("faiss_db", index_name=index_name)
 
     def load_index(self, index_name):
@@ -28,6 +32,9 @@ class VectorDatabase:
         text_splitter = CharacterTextSplitter(
             chunk_size=chunk_size, chunk_overlap=chunk_overlap
         )
+        if isinstance(loader, str):
+            return text_splitter.split_text(loader)
+
         documents = text_splitter.split_documents(loader)
         return documents
 
@@ -44,9 +51,10 @@ class VectorDatabase:
         text = ""
         for item in book.get_items():
             if item.get_type() == ebooklib.ITEM_DOCUMENT:
-                soup = BeautifulSoup(item.get_content(), 'html.parser')
+                soup = BeautifulSoup(item.get_content(), "html.parser")
                 text += soup.get_text()
-        return self.split_text(TextLoader(text).load())
+        loader = text
+        return self.split_text(loader)
 
 
 class BookDatabase:
@@ -81,7 +89,8 @@ class BookDatabase:
     def add_book(self, title, author, index_name, filename):
         # Check if the book already exists in the database
         self.cursor.execute(
-            "SELECT * FROM books WHERE title = ? AND author = ? AND filename = ?", (title, author, filename)
+            "SELECT * FROM books WHERE title = ? AND author = ? AND filename = ?",
+            (title, author, filename),
         )
         existing_book = self.cursor.fetchone()
         if existing_book:
@@ -98,9 +107,7 @@ class BookDatabase:
 
     # Checks if book exists in database by filename
     def check_book(self, filename):
-        self.cursor.execute(
-            "SELECT * FROM books WHERE filename = ?", (filename,)
-        )
+        self.cursor.execute("SELECT * FROM books WHERE filename = ?", (filename,))
         existing_book = self.cursor.fetchone()
         if existing_book:
             return True
@@ -121,8 +128,14 @@ class BookDatabase:
         self.cursor.close()
         self.conn.close()
 
+    def print_all_books(self):
+        self.cursor.execute("SELECT * FROM books")
+        rows = self.cursor.fetchall()
+        for row in rows:
+            print(str(row))
 
-class Database():
+
+class Database:
     def __init__(self):
         self.db_file = "books.db"
         self.vdb = VectorDatabase()
@@ -130,7 +143,7 @@ class Database():
         self.supported_extensions = [".txt", ".pdf", ".epub"]
 
     def load_all_bookdata(self):
-    # For all books located in bookdata/
+        # For all books located in bookdata/
         for filename in os.listdir("bookdata"):
             # Get the file extension
             extension = os.path.splitext(filename)[1]
@@ -153,11 +166,11 @@ class Database():
                 else:
                     print(f"{filename} is not a supported file type.")
                     continue
-                
+
                 # Create the index
                 index_hash = self.create_index_hash(filename)
                 self.vdb.create_index(index_hash, documents)
-                
+
                 # Extract author from inside {} in filename
                 author = filename.split("{")[1].split("}")[0]
                 # Extract title from filename
@@ -165,13 +178,7 @@ class Database():
                 # Add the book to the BookDatabase
                 self.bdb.add_book(title, author, index_hash, filename)
 
-            
     def create_index_hash(self, book_file_name):
         # Hash the file name to create a unique index name
         index_name = hashlib.sha256(book_file_name.encode()).hexdigest()
         return index_name
-
-
-
-
-Database().load_all_bookdata()
