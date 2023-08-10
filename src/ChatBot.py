@@ -5,7 +5,7 @@ from Database import BookDatabase, VectorDatabase
 
 
 class BookChatBot:
-    def __init__(self, book_db_file, vector_db_file, model_path):
+    def __init__(self, book_db_file, model_path):
         self.book_db = BookDatabase(book_db_file)
         self.vector_db = VectorDatabase()
         self.vector_index = None
@@ -39,10 +39,8 @@ class BookChatBot:
 
 # Example usage
 book_db_file = "books.db"
-vector_db_file = "vector.db"
-
 model_path = "models/GPT4All-13B-snoozy.ggmlv3.q4_0.bin"
-bot = BookChatBot(book_db_file, vector_db_file, model_path)
+bot = BookChatBot(book_db_file, model_path)
 
 results = bot.search_books("gatsby")[0]
 vector_index_name = results["index_name"]

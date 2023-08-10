@@ -128,6 +128,14 @@ class BookDatabase:
         self.cursor.close()
         self.conn.close()
 
+    def get_book_by_id(self, book_id):
+        self.cursor.execute("SELECT * FROM books WHERE id = ?", (book_id,))
+        row = self.cursor.fetchone()
+        if row:
+            return dict(row)
+        else:
+            return None
+
     def print_all_books(self):
         self.cursor.execute("SELECT * FROM books")
         rows = self.cursor.fetchall()
